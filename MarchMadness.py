@@ -78,32 +78,7 @@ class MarchMadness:
 
             print("\n\n\n")
         
-        championship = []
-        match_ups = [[self.champs['east'], self.champs['west']], [self.champs['south'], self.champs['midwest']]]
-        self.bracket_round += 1
-        print(" \nRound {} \n".format(self.bracket_round))
         
-        print("Final Four East/West:")
-        coin_toss = random.randint(0, 1)
-        if self.team_ranking(match_ups[0][coin_toss]) > self.team_ranking(match_ups[0][coin_toss-1]):
-            self.upsets += 1
-        print("{} beats {}".format(match_ups[0][coin_toss], match_ups[0][coin_toss-1]))
-        championship.append(match_ups[0][coin_toss])
-        
-        print("Final Four South/Midwest:")
-        coin_toss = random.randint(0, 1)
-        if self.team_ranking(match_ups[1][coin_toss]) > self.team_ranking(match_ups[1][coin_toss-1]):
-            self.upsets += 1
-        print("{} beats {}".format(match_ups[1][coin_toss], match_ups[1][coin_toss-1]))
-        championship.append(match_ups[1][coin_toss])
-        
-        self.bracket_round += 1
-        print(" \nRound {} \n".format(self.bracket_round))
-        print("Championship")
-        coin_toss = random.randint(0, 1)
-        if self.team_ranking(championship[coin_toss]) > self.team_ranking(championship[coin_toss-1]):
-            self.upsets += 1
-        print("{} beats {} to take the Championship".format(championship[coin_toss], championship[coin_toss-1]))
             
         print("upsets", self.upsets)
                     
@@ -137,9 +112,32 @@ class MarchMadness:
         start = team.find("(") + 1
         end = team.find(")")
         return int(team[start:end])
-        
-def main():
-    march_madness = MarchMadness()
-    march_madness.coin_toss()
     
-main()
+    def final_four(self):
+        championship = []
+        match_ups = [[self.champs['east'], self.champs['west']], [self.champs['south'], self.champs['midwest']]]
+        self.bracket_round += 1
+        print(" \nRound {} \n".format(self.bracket_round))
+        
+        print("Final Four East/West:")
+        coin_toss = random.randint(0, 1)
+        if self.team_ranking(match_ups[0][coin_toss]) > self.team_ranking(match_ups[0][coin_toss-1]):
+            self.upsets += 1
+        print("{} beats {}".format(match_ups[0][coin_toss], match_ups[0][coin_toss-1]))
+        championship.append(match_ups[0][coin_toss])
+        
+        print("Final Four South/Midwest:")
+        coin_toss = random.randint(0, 1)
+        if self.team_ranking(match_ups[1][coin_toss]) > self.team_ranking(match_ups[1][coin_toss-1]):
+            self.upsets += 1
+        print("{} beats {}".format(match_ups[1][coin_toss], match_ups[1][coin_toss-1]))
+        championship.append(match_ups[1][coin_toss])
+        
+        self.bracket_round += 1
+        print(" \nRound {} \n".format(self.bracket_round))
+        print("Championship")
+        coin_toss = random.randint(0, 1)
+        if self.team_ranking(championship[coin_toss]) > self.team_ranking(championship[coin_toss-1]):
+            self.upsets += 1
+        print("{} beats {} to take the Championship".format(championship[coin_toss], championship[coin_toss-1]))
+        
