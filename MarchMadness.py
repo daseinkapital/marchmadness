@@ -128,10 +128,10 @@ class MarchMadness:
             self.bracket_round += 1
             print(" \nRound {} \n".format(self.bracket_round))
             coin_toss = random.randint(0, 1)
-            if self.team_ranking(match_ups[i][coin_toss]) > self.team_ranking(match_ups[i][coin_toss-1]):
+            if self.team_ranking(next_round[0][coin_toss]) > self.team_ranking(next_round[0][coin_toss-1]):
                 self.upsets += 1
-            print("{} beats {}".format(match_ups[i][coin_toss], match_ups[i][coin_toss-1]))
-            self.winner = match_ups[i][coin_toss]
+            print("{} beats {}".format(next_round[0][coin_toss], next_round[0][coin_toss-1]))
+            self.winner = next_round[0][coin_toss]
         
     def team_ranking(self, team):
         start = team.find("(") + 1
