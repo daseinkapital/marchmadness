@@ -78,7 +78,7 @@ class MarchMadness:
 
             print("\n\n\n")
         
-        
+        self.final_four()
             
         print("upsets", self.upsets)
                     
@@ -140,4 +140,4 @@ class MarchMadness:
         if self.team_ranking(championship[coin_toss]) > self.team_ranking(championship[coin_toss-1]):
             self.upsets += 1
         print("{} beats {} to take the Championship".format(championship[coin_toss], championship[coin_toss-1]))
-        
+    
