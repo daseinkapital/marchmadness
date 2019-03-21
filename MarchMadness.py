@@ -6,7 +6,7 @@ Created on Wed Mar 20 10:33:38 2019
 """
 
 import random
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 import urllib.parse
 import urllib.request
 
@@ -17,7 +17,8 @@ from bs4 import BeautifulSoup as bs
 #grabs the html of a url
 def fetch_url(url):
     url = url.encode('ascii', errors="ignore").decode()
-    html = urlopen(url)
+    req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    html = urlopen(req)
     soup = bs(html, "html.parser")
     return soup
 
@@ -63,8 +64,30 @@ def get_teams():
     
     return teams
     
+def strip_score(score):
+    score_regex = r'([0-9]{1,3})-([0-9]{1,3})'
+    match = re.findall(score_regex, str(score))[0]
+    return match[0], match[1]
+
+def get_finals_scores():
+    url = 'https://www.ncaa.com/history/basketball-men/d1'
     
+    html = fetch_url(url)
     
+    data_table = html.find('tbody')
+    rows = data_table.findAll('tr')
+    
+    past_scores = []
+    
+    for row in rows:
+        cols = row.findAll('td')
+        year = cols[0].text
+        score = cols[3]
+        winner, loser = strip_score(score)
+        past_scores.append({'year': year, 'winning_score': int(winner), 'losing_score': int(loser)})
+        
+    return past_scores
+
 
 class MarchMadness:
     
@@ -72,59 +95,13 @@ class MarchMadness:
         self.upsets = 0
         self.bracket_round = 0 
     
+        #grabs the current teams
         self.teams = get_teams()
         
+        #contains year, winning_score, losing_score for all championship games going back to 1939
+        self.past_finals_scores = get_finals_scores()
+        
         self.evaluation_metric = evaluation_metric
-#        self.teams = [
-#            {'division': 'east',
-#             'match_ups': [
-#                     ['Duke (1)', 'NDS/NCC (16)'],
-#                     ['VCU (8)', 'UCF (9)'],
-#                     ['Mississippi St (5)', 'Liberty (12)'],
-#                     ['Virginia Tech (4)', 'Saint Louis (13)'],
-#                     ['Maryland (6)', 'Belmont (11)'],
-#                     ['LSU (3)', 'Yale (14)'],
-#                     ['Louisville (7)', 'Minnesota (10)'],
-#                     ['Michigan St (2)', 'Bradley (15)']
-#                 ]
-#            },
-#            {'division': 'south',
-#             'match_ups': [ 
-#                     ['Virginia (1)', 'Gardner-Webb (16)'],
-#                     ['Ole Miss (8)', 'Oklahoma (9)'],
-#                     ['Wisconsin (5)', 'Oregon (12)'],
-#                     ['Kansas State (4)', 'UC Irvine (13)'],
-#                     ['Villanova (6)', 'Saint Mary\'s (11)'],
-#                     ['Purdue (3)', 'Old Dominion (14)'],
-#                     ['Cincinnati (7)', 'Iowa (10)'],
-#                     ['Tennessee (2)', 'Colgate (15)']
-#                 ]
-#            },
-#            {'division': 'west',
-#             'match_ups': [
-#                     ['Gonzaga (1)', 'F. Dickinson (16)'],
-#                     ['Syracuse (8)', 'Baylor (9)'],
-#                     ['Marquette (5)', 'Murray State (12)'],
-#                     ['Florida St (4)', 'Vermont (13)'],
-#                     ['Buffalo (6)', 'ASU/SJU (11)'],
-#                     ['Texas Tech (3)', 'N Kentucky (14)'],
-#                     ['Nevada (7)', 'Florida (10)'],
-#                     ['Michigan (2)', 'Montana (15)']
-#                 ]
-#            },
-#            {'division': 'midwest',
-#             'match_ups': [ 
-#                     ['North Carolina (1)', 'Iona (16)'],
-#                     ['Utah State (8)', 'Washington (9)'],
-#                     ['Auburn (5)', 'New Mexico St (12)'],
-#                     ['Kansas (4)', 'Northeastern (13)'],
-#                     ['Iowa State (6)', 'Ohio State (11)'],
-#                     ['Houston (3)', 'Georgia State (14)'],
-#                     ['Wofford (7)', 'Seton Hall (10)'],
-#                     ['Kentucky (2)', 'Abil Christian (15)']
-#                 ]
-#            },
-#        ]
             
         self.champs = {}
     
@@ -202,6 +179,35 @@ class MarchMadness:
         self.check_upset(championship[winner], championship[winner-1])
         print("{} beats {} to take the Championship".format(self.str_team(championship[winner]), self.str_team(championship[winner-1])))
  
+    def championship_score_range(self):
+        min_lose = 10000
+        min_win = 10000
+        max_lose = 0
+        max_win = 0
+        
+        for score in self.past_finals_scores:
+            if score['winning_score'] > max_win:
+                max_win = score['winning_score']
+            if score['winning_score'] < min_win:
+                min_win = score['winning_score']
+            if score['losing_score'] > max_lose:
+                max_lose = score['losing_score']
+            if score['losing_score'] < min_lose:
+                min_lose = score['losing_score']
+        
+        return min_win, max_win, min_lose, max_lose
+    
+    
+    def random_championship_score(self):
+        min_win, max_win, min_lose, max_lose = self.championship_score_range()
+        
+        winning_score = random.randint(min_win, max_win)
+        
+        losing_score = 1000000
+        while (losing_score > winning_score):
+            losing_score = random.randint(min_lose, max_lose)
+        
+        print("FINAL SCORE: {0} - {1}".format(winning_score, losing_score))
     
     ####### EVALUTION METRICS
     #this is where you should take the match (has rank and name of team) and then decide who wins, returning 0 for the first team and 1 for the second team
