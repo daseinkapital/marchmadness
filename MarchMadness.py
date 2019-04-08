@@ -25,37 +25,35 @@ def fetch_url(url):
 #finds the team names and ranks and returns the matchup
 #[{'name' : 'team1', 'rank': #}, {'name' : 'team2', 'rank': #}]
 def parse_teams(match):
-    num_regex = r'(br/>|dt>)(\d{1,2})'
-    name_regex = r'(>)([A-Z]\w+)'
-    
-    ranks = re.findall(num_regex, str(match))
-    names = re.findall(name_regex, str(match))
-    
-    matchup = [{'name': names[0][1], 'rank': int(ranks[0][1])}, {'name': names[1][1], 'rank': int(ranks[1][1])}]
-    
+    ranks = match.findAll('span', {'class': 'seed'})
+    teams = match.findAll('span', {'class': 'name'})
+
+    rank1 = ranks[0].text
+    team1 = teams[0].text
+    rank2 = ranks[1].text
+    team2 = teams[1].text
+    matchup = [{'name': team1, 'rank': int(rank1)}, {'name': team2, 'rank': int(rank2)}]
     return matchup
 
-#returns the matchups of each region
 def parse_region(region):
-    while region.find('dd'):
-        region.find('dd').decompose()
-    matches = region.findAll("dl", {"class": "match round1"})
+    round1 = region.findAll('div', {'class': 'round-1'})[0]
+    matches = round1.findAll('div', {'class': 'play-pod'})
+    
     matchups = []
-    for i, match in enumerate(matches):
+    for match in matches:
         matchups.append(parse_teams(match))
         
     return matchups
-            
-        
+
 def get_teams():
-    #make assumption that espn updates this link every year otherwise kmn
-    url = 'http://www.espn.com/mens-college-basketball/tournament/bracket'
+    
+    url = 'https://www.ncaa.com/brackets/basketball-men/d1'
     
     html = fetch_url(url)
     
-    east, west, south, midwest = html.findAll("div", {"class": "region"})
-    
+    east, west, south, midwest = html.findAll("div", {"class": "region"})[1:]
     teams = []
+    
     
     teams.append({'division': 'east', 'match_ups': parse_region(east)})
     teams.append({'division': 'west', 'match_ups': parse_region(west)})
@@ -88,6 +86,30 @@ def get_finals_scores():
         
     return past_scores
 
+def get_team_win_loss_percentages():
+    url = "https://www.ncaa.com/stats/basketball-men/d1/current/team/168"
+    paginations = ['', '/p2', '/p3', '/p4', '/p5', '/p6', '/p7', '/p8']
+
+    data = []    
+    for page in paginations:
+        html = fetch_url(url + page)
+        
+        data_table = html.find('tbody')
+        rows = data_table.findAll('tr')
+        
+        for row in rows:
+            cols = row.findAll('td')
+            name = row.find('a')
+            team_name = name.text
+            wins = int(cols[2].text)
+            loses = int(cols[3].text)
+            pct = float(cols[4].text)
+            data.append({'team_name': team_name, 'wins': wins, 'loses': loses, 'pct': pct})
+        
+    print(data)
+            
+        # finish this algorithm via webscraping
+        # http://www.mathaware.org/mam/2010/essays/ChartierBracketology.pdf
 
 class MarchMadness:
     
@@ -98,6 +120,13 @@ class MarchMadness:
         #grabs the current teams
         self.teams = get_teams()
         
+        self.round1 = self.teams.copy()
+        self.round2 = []
+        self.round3 = []
+        self.round4 = []
+        self.round5 = []
+        self.round6 = []
+        
         #contains year, winning_score, losing_score for all championship games going back to 1939
         self.past_finals_scores = get_finals_scores()
         
@@ -105,13 +134,13 @@ class MarchMadness:
             
         self.champs = {}
     
-    def run_bracket(self):
+    def run_bracket_statistic(self):
         for division in self.teams:
             print("{} :".format(division['division']))
             match_ups = division['match_ups']
             
             self.bracket_round = 0    
-            self.pick_round(match_ups)
+            self.pick_round(division['division'], match_ups)
             self.champs[division['division']] = self.winner
 
             print("\n\n\n")
@@ -120,8 +149,12 @@ class MarchMadness:
             
         print("upsets", self.upsets)
                     
-    def pick_round(self, match_ups):
+    def pick_round(self, division, match_ups):
         self.bracket_round += 1
+        if self.bracket_round == 2:
+            self.round2.append({'division': division, 'match_ups': match_ups})
+        elif self.bracket_round == 3:
+            self.round3.append({'division': division, 'match_ups': match_ups})
         print(" \nRound {} \n".format(self.bracket_round))
         next_round = []
         for i in range(len(match_ups)):
@@ -134,10 +167,11 @@ class MarchMadness:
                 next_match_up.append(match_ups[i][winner])        
                 next_round.append(next_match_up)
         if len(next_round) > 1:
-            self.pick_round(next_round)
+            self.pick_round(division, next_round)
         
         else:
             self.bracket_round += 1
+            self.round4.append({'division': division, 'match_ups': match_ups})
             print(" \nRound {} \n".format(self.bracket_round))
             winner = self.evaluation_metric(next_round[0])
             self.check_upset(next_round[0][winner], next_round[0][winner-1])
@@ -148,6 +182,141 @@ class MarchMadness:
     def str_team(self, team):
         return "{0} ({1})".format(team['name'], team['rank'])
     
+    #for printing purposes of final pracket
+    def preprocess_team_print(self, team):
+        #get the team's length
+        team_len = len(self.str_team(team))
+        length = self.get_length_of_longest_team_name()
+        diff = length - team_len
+        print_str = self.str_team(team)
+        print_str += " " * diff
+        return print_str
+    
+    # Get the names of all the teams playing
+    def get_all_team_names(self):
+        print(self.teams)
+        team_names = []
+        for division in self.teams:
+            matchups = division['match_ups']
+            for game in matchups:
+                team_names.append(game[0])
+                team_names.append(game[1])
+        
+        return team_names
+    
+    #return the length of the longest team name
+    def get_length_of_longest_team_name(self):
+        longest_name = 0
+        team_names = self.get_all_team_names()
+        for name in team_names:
+            if len(self.str_team(name)) > longest_name:
+                longest_name = len(self.str_team(name))
+        
+        return longest_name
+    
+    def pretty_print_bracket(self):
+        divisions = ['East', 'West', 'South', 'Midwest']
+        tab = self.get_length_of_longest_team_name()
+        
+        spaces = " " * tab
+        overscores = "‾" * tab
+        team_return = "{}\n"
+        team_cont = "{}|"
+        end = "|"
+        
+        #division name plus a new line
+        bracket_str = "{}\n\n"
+        
+        bracket_str += team_return
+        bracket_str += overscores + end + team_return        
+        bracket_str += team_cont + overscores + end + '\n'
+        bracket_str += overscores + " " + spaces + end + team_return
+        bracket_str += team_cont[:-1] + " " + spaces + end + overscores + end + '\n'
+        bracket_str += overscores + end + team_cont + spaces + end + '\n'
+        bracket_str += team_cont + overscores + " " + spaces + end + '\n'
+        bracket_str += overscores + " " + spaces + " " + spaces + end + team_return
+        bracket_str += team_cont[:-1] + " " + spaces + " " + spaces + end + overscores + end + '\n'
+        bracket_str += overscores + end + team_cont[:-1] + " " + spaces + end + spaces + end + '\n'
+        bracket_str += team_cont + overscores + end + spaces + end + spaces + end + '\n'
+        bracket_str += overscores + ' ' + spaces + end + team_cont + spaces + end + '\n'
+        bracket_str += team_cont[:-1] + ' ' + spaces + end + overscores + ' ' + spaces + end + '\n'
+        bracket_str += overscores + end + team_cont +  spaces + ' ' + spaces + end + '\n'
+        bracket_str += team_cont + overscores + ' ' + spaces + ' ' + spaces + end + '\n'
+        bracket_str += overscores + ' ' + spaces + ' ' + spaces + ' ' + spaces + end + team_return
+        bracket_str += team_cont[:-1] + ' ' + spaces + ' ' + spaces + ' ' + spaces + end + overscores + '\n'
+        bracket_str += overscores + end + team_cont[:-1] + ' ' + spaces + ' ' + spaces + end + '\n'    
+        bracket_str += team_cont + overscores + end + spaces + ' ' + spaces + end + '\n'
+        bracket_str += overscores + " " + spaces + end + team_cont[:-1] + ' ' + spaces + end + '\n'
+        bracket_str += team_cont[:-1] + " " + spaces + end + overscores + end + spaces + end + '\n'
+        bracket_str += overscores + end + team_cont + spaces + end + spaces + end + '\n'
+        bracket_str += team_cont + overscores + " " + spaces + end + spaces + end + '\n'
+        bracket_str += overscores + " " + spaces + " " + spaces + end + team_cont + '\n'
+        bracket_str += team_cont[:-1] + " " + spaces + " " + spaces + end + overscores + '\n'
+        bracket_str += overscores + end + team_cont[:-1] + " " + spaces + end + '\n'
+        bracket_str += team_cont + overscores + end + spaces + end + '\n'
+        bracket_str += overscores + ' ' + spaces + end + team_cont + '\n'
+        bracket_str += team_cont[:-1] + ' ' + spaces + end + overscores + '\n'
+        bracket_str += overscores + end + team_cont + '\n'
+        bracket_str += team_cont + overscores + '\n'
+        bracket_str += overscores + '\n'
+        
+        division_str = []
+        
+        i = 0
+        
+        for division in divisions:
+            division_str.append({'div' : division, 'bracket': bracket_str})
+            for corner in self.round1:
+                if corner['division'] == division.lower():
+                    round1 = corner['match_ups']
+            for corner in self.round2:
+                if corner['division'] == division.lower():
+                    round2 = corner['match_ups']
+            for corner in self.round3:
+                if corner['division'] == division.lower():
+                    round3 = corner['match_ups']
+            for corner in self.round4:
+                if corner['division'] == division.lower():
+                    round4 = corner['match_ups']
+            champ = self.champs[division.lower()]
+            
+            division_str[i]['bracket'] = division_str[i]['bracket'].format(
+                    division,
+                    self.preprocess_team_print(round1[0][0]),
+                    self.preprocess_team_print(round2[0][0]),
+                    self.preprocess_team_print(round1[0][1]),
+                    self.preprocess_team_print(round3[0][0]),
+                    self.preprocess_team_print(round1[1][0]),
+                    self.preprocess_team_print(round2[0][1]),
+                    self.preprocess_team_print(round1[1][1]),
+                    self.preprocess_team_print(round4[0][0]),
+                    self.preprocess_team_print(round1[2][0]),
+                    self.preprocess_team_print(round2[1][0]),
+                    self.preprocess_team_print(round1[2][1]),
+                    self.preprocess_team_print(round3[0][1]),
+                    self.preprocess_team_print(round1[3][0]),
+                    self.preprocess_team_print(round2[1][1]),
+                    self.preprocess_team_print(round1[3][1]),
+                    self.preprocess_team_print(champ),
+                    self.preprocess_team_print(round1[4][0]),
+                    self.preprocess_team_print(round2[2][0]),
+                    self.preprocess_team_print(round1[4][1]),
+                    self.preprocess_team_print(round3[1][0]),
+                    self.preprocess_team_print(round1[5][0]),
+                    self.preprocess_team_print(round2[2][1]),
+                    self.preprocess_team_print(round1[5][1]),
+                    self.preprocess_team_print(round4[0][1]),
+                    self.preprocess_team_print(round1[6][0]),
+                    self.preprocess_team_print(round2[3][0]),
+                    self.preprocess_team_print(round1[6][1]),
+                    self.preprocess_team_print(round3[1][1]),
+                    self.preprocess_team_print(round1[7][0]),
+                    self.preprocess_team_print(round2[3][1]),
+                    self.preprocess_team_print(round1[7][1])
+                    )
+        
+        print(division_str[i]['bracket'])
+            
     # Check if winner upset loser
     def check_upset(self, winning_team, losing_team):
         if winning_team['rank'] > losing_team['rank']:
@@ -227,3 +396,37 @@ class MarchMadness:
             return 1
         else:
             return random.randint(0, 1)
+    
+    #tries to reduce upsets, while leaving a possibility for them
+    def weighted_rankings(match):
+        team1 = match[0]
+        team2 = match[1]
+        
+        rank_delta = team1['rank'] - team2['rank']
+        
+        #if the teams are evenly matched, pick one at random
+        if rank_delta == 0:
+            return random.randint(0, 1)
+        elif rank_delta < 0:
+            rank_delta = rank_delta * -1
+        
+        # gives a 4.5% chance (compounding) of ranking diff
+        game_split = (1.045 ** rank_delta)
+        
+        better_ranked_team_win_percentage = 0.5 * game_split
+        print(better_ranked_team_win_percentage)
+        
+        if random.random() < better_ranked_team_win_percentage:            
+            if team1['rank'] < team2['rank']:
+                return 0
+            elif team2['rank'] < team1['rank']:
+                return 1
+        else:
+            if team1['rank'] > team2['rank']:
+                return 0
+            elif team2['rank'] > team1['rank']:
+                return 1
+            
+madness = MarchMadness(MarchMadness.weighted_rankings)
+madness.run_bracket_statistic()
+print(madness.pretty_print_bracket())
