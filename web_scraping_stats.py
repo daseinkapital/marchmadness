@@ -848,6 +848,8 @@ def get_all_team_statistics():
     #returns the 
     first_matchup = get_teams()[0]['match_ups'][0]
     print(first_matchup[0]['name'], team_stats[first_matchup[0]['name']])
-    print(first_matchup[1]['name'], team_stats[first_matchup[1]['name']])         
+    print(first_matchup[1]['name'], team_stats[first_matchup[1]['name']]) 
+
+    return team_stats        
 
 get_all_team_statistics()

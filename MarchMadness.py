@@ -116,6 +116,7 @@ class MarchMadness:
     def __init__(self, evaluation_metric):
         self.upsets = 0
         self.bracket_round = 0 
+        self.pretty_print = True
     
         #grabs the current teams
         self.teams = get_teams()
@@ -133,21 +134,29 @@ class MarchMadness:
         self.evaluation_metric = evaluation_metric
             
         self.champs = {}
+        self.champion = '';
     
-    def run_bracket_statistic(self):
+    def run_bracket_statistic(self, pretty_print=True):
+        self.pretty_print = pretty_print
         for division in self.teams:
-            print("{} :".format(division['division']))
+            if not self.pretty_print:
+                print("{} :".format(division['division']))
             match_ups = division['match_ups']
             
             self.bracket_round = 0    
             self.pick_round(division['division'], match_ups)
             self.champs[division['division']] = self.winner
 
-            print("\n\n\n")
+            if not self.pretty_print:
+                print("\n\n\n")
         
         self.final_four()
+        
+        if self.pretty_print:
+            self.pretty_print_bracket()
+            self.pretty_print_final_four()
             
-        print("upsets", self.upsets)
+        print("\n\nupsets", self.upsets)
                     
     def pick_round(self, division, match_ups):
         self.bracket_round += 1
@@ -155,12 +164,14 @@ class MarchMadness:
             self.round2.append({'division': division, 'match_ups': match_ups})
         elif self.bracket_round == 3:
             self.round3.append({'division': division, 'match_ups': match_ups})
-        print(" \nRound {} \n".format(self.bracket_round))
+        if not self.pretty_print:
+            print(" \nRound {} \n".format(self.bracket_round))
         next_round = []
         for i in range(len(match_ups)):
             winner = self.evaluation_metric(match_ups[i])
             self.check_upset(match_ups[i][winner], match_ups[i][winner-1])
-            print("{} beats {}".format(self.str_team(match_ups[i][winner]), self.str_team(match_ups[i][winner-1])))
+            if not self.pretty_print:
+                print("{} beats {}".format(self.str_team(match_ups[i][winner]), self.str_team(match_ups[i][winner-1])))
             if (i%2 == 0):
                 next_match_up = [match_ups[i][winner]]
             else:
@@ -172,10 +183,12 @@ class MarchMadness:
         else:
             self.bracket_round += 1
             self.round4.append({'division': division, 'match_ups': match_ups})
-            print(" \nRound {} \n".format(self.bracket_round))
+            if not self.pretty_print:
+                print(" \nRound {} \n".format(self.bracket_round))
             winner = self.evaluation_metric(next_round[0])
             self.check_upset(next_round[0][winner], next_round[0][winner-1])
-            print("{} beats {}".format(self.str_team(next_round[0][winner]), self.str_team(next_round[0][winner-1])))
+            if not self.pretty_print:
+                print("{} beats {}".format(self.str_team(next_round[0][winner]), self.str_team(next_round[0][winner-1])))
             self.winner = next_round[0][winner]
     
     # Stringify the team name and include the rank
@@ -194,7 +207,6 @@ class MarchMadness:
     
     # Get the names of all the teams playing
     def get_all_team_names(self):
-        print(self.teams)
         team_names = []
         for division in self.teams:
             matchups = division['match_ups']
@@ -315,7 +327,40 @@ class MarchMadness:
                     self.preprocess_team_print(round1[7][1])
                     )
         
-        print(division_str[i]['bracket'])
+            print(division_str[i]['bracket'])
+            i += 1
+
+    def pretty_print_final_four(self):
+        tab = self.get_length_of_longest_team_name()
+        
+        spaces = " " * tab
+        overscores = "‾" * tab
+        team_return = "{}\n"
+        team_cont = "{}|"
+        end = "|"
+        
+        bracket_str = "Final Four and Championship \n\n"
+        bracket_str += team_return
+        bracket_str += overscores + end + team_return        
+        bracket_str += team_cont + overscores + end + '\n'
+        bracket_str += overscores + " " + spaces + end + team_return
+        bracket_str += team_cont[:-1] + " " + spaces + end + overscores + '\n'
+        bracket_str += overscores + end + team_cont + '\n'
+        bracket_str += team_cont + overscores + '\n'
+        bracket_str += overscores
+        
+        bracket_str = bracket_str.format(
+                self.preprocess_team_print(self.round5[0][0]),
+                self.preprocess_team_print(self.round6[0]),
+                self.preprocess_team_print(self.round5[0][1]),
+                self.preprocess_team_print(self.champion),
+                self.preprocess_team_print(self.round5[1][0]),
+                self.preprocess_team_print(self.round6[1]),
+                self.preprocess_team_print(self.round5[1][1])
+                )
+        
+        print(bracket_str)
+        
             
     # Check if winner upset loser
     def check_upset(self, winning_team, losing_team):
@@ -326,27 +371,33 @@ class MarchMadness:
     def final_four(self):
         championship = []
         match_ups = [[self.champs['east'], self.champs['west']], [self.champs['south'], self.champs['midwest']]]
+        self.round5 = match_ups
         self.bracket_round += 1
-        print(" \nRound {} \n\n".format(self.bracket_round))
-        
-        print("Final Four East/West:")
         winner = self.evaluation_metric(match_ups[0])
         self.check_upset(match_ups[0][winner], match_ups[0][winner-1])
-        print("{} beats {}".format(self.str_team(match_ups[0][winner]), self.str_team(match_ups[0][winner-1])))
+        
+        if not self.pretty_print:
+            print(" \nRound {} \n\n".format(self.bracket_round))
+            print("Final Four East/West:")
+            print("{} beats {}".format(self.str_team(match_ups[0][winner]), self.str_team(match_ups[0][winner-1])))
         championship.append(match_ups[0][winner])
         
-        print("Final Four South/Midwest:")
         winner = self.evaluation_metric(match_ups[1])
         self.check_upset(match_ups[1][winner], match_ups[1][winner-1])
-        print("{} beats {}".format(self.str_team(match_ups[1][winner]), self.str_team(match_ups[1][winner-1])))
+        if not self.pretty_print:
+            print("Final Four South/Midwest:")
+            print("{} beats {}".format(self.str_team(match_ups[1][winner]), self.str_team(match_ups[1][winner-1])))
         championship.append(match_ups[1][winner])
         
         self.bracket_round += 1
-        print(" \nRound {} \n".format(self.bracket_round))
-        print("Championship")
+        self.round6 = championship
         winner = self.evaluation_metric(championship)
         self.check_upset(championship[winner], championship[winner-1])
-        print("{} beats {} to take the Championship".format(self.str_team(championship[winner]), self.str_team(championship[winner-1])))
+        self.champion = championship[winner]
+        if not self.pretty_print:
+            print(" \nRound {} \n".format(self.bracket_round))
+            print("Championship")
+            print("{} beats {} to take the Championship".format(self.str_team(championship[winner]), self.str_team(championship[winner-1])))
  
     def championship_score_range(self):
         min_lose = 10000
@@ -414,8 +465,8 @@ class MarchMadness:
         game_split = (1.045 ** rank_delta)
         
         better_ranked_team_win_percentage = 0.5 * game_split
-        print(better_ranked_team_win_percentage)
         
+
         if random.random() < better_ranked_team_win_percentage:            
             if team1['rank'] < team2['rank']:
                 return 0
@@ -429,4 +480,3 @@ class MarchMadness:
             
 madness = MarchMadness(MarchMadness.weighted_rankings)
 madness.run_bracket_statistic()
-print(madness.pretty_print_bracket())
