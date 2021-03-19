@@ -775,6 +775,8 @@ def get_three_pt_fg_per_game():
         
     return data
 
+
+
 def get_win_loss_percentages():
     url = "https://www.ncaa.com/stats/basketball-men/d1/current/team/168"
     paginations = ['', '/p2', '/p3', '/p4', '/p5', '/p6', '/p7', '/p8']
@@ -830,6 +832,16 @@ def get_all_team_statistics():
             get_steals_per_game,
             get_three_pt_fg_defense,
             get_three_pt_fg_per_game,
+#            get_three_pt_fg_percentage,
+#            get_total_tpfgm,
+#            get_total_assists,
+#            get_total_blocks,
+#            get_total_rebounds,
+#            get_total_steals,
+#            get_total_margin,
+#            get_turnover_forced,
+#            get_turnover_margin,
+#            get_turnover_per_game,
             get_win_loss_percentages
             ]
     

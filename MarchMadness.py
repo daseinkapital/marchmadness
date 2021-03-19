@@ -47,20 +47,38 @@ def parse_region(region):
 
 def get_teams():
     
-    url = 'https://www.ncaa.com/brackets/basketball-men/d1'
+    url = 'https://www.ncaa.com/brackets/basketball-men/d1/2021'
     
     html = fetch_url(url)
     
-    east, west, south, midwest = html.findAll("div", {"class": "region"})[1:]
-    teams = []
+    regions = html.findAll("div", {"class": "region"})[1:]
+
+    final_four = [] # use to determine which regions match up in final four
     
+    for region in regions:
+        if "<h3>EAST</h3>" in str(region):
+            east = region
+            final_four.append('east')
+        elif "<h3>WEST</h3>" in str(region):
+            west = region
+            final_four.append('west')
+        elif "<h3>SOUTH</h3>" in str(region):
+            south = region
+            final_four.append('south')
+        elif "<h3>MIDWEST</h3>" in str(region):
+            midwest = region
+            final_four.append('midwest')
+    
+    print(final_four)
+    
+    teams = []
     
     teams.append({'division': 'east', 'match_ups': parse_region(east)})
     teams.append({'division': 'west', 'match_ups': parse_region(west)})
     teams.append({'division': 'south', 'match_ups': parse_region(south)})
     teams.append({'division': 'midwest', 'match_ups': parse_region(midwest)})
     
-    return teams
+    return teams, final_four
     
 def strip_score(score):
     score_regex = r'([0-9]{1,3})-([0-9]{1,3})'
@@ -113,13 +131,14 @@ def get_team_win_loss_percentages():
 
 class MarchMadness:
     
-    def __init__(self, evaluation_metric):
+    def __init__(self, evaluation_metric, name='My March Madness Bracket'):
+        self.name = name
         self.upsets = 0
         self.bracket_round = 0 
-        self.pretty_print = True
+        self.pretty_print = False
     
         #grabs the current teams
-        self.teams = get_teams()
+        self.teams, self.final_four_match_ups = get_teams()
         
         self.round1 = self.teams.copy()
         self.round2 = []
@@ -127,7 +146,7 @@ class MarchMadness:
         self.round4 = []
         self.round5 = []
         self.round6 = []
-        
+                
         #contains year, winning_score, losing_score for all championship games going back to 1939
         self.past_finals_scores = get_finals_scores()
         
@@ -167,6 +186,7 @@ class MarchMadness:
         if not self.pretty_print:
             print(" \nRound {} \n".format(self.bracket_round))
         next_round = []
+        print(next_round)
         for i in range(len(match_ups)):
             winner = self.evaluation_metric(match_ups[i])
             self.check_upset(match_ups[i][winner], match_ups[i][winner-1])
@@ -182,7 +202,7 @@ class MarchMadness:
         
         else:
             self.bracket_round += 1
-            self.round4.append({'division': division, 'match_ups': match_ups})
+            self.round4.append({'division': division, 'match_ups': next_round})
             if not self.pretty_print:
                 print(" \nRound {} \n".format(self.bracket_round))
             winner = self.evaluation_metric(next_round[0])
@@ -370,7 +390,7 @@ class MarchMadness:
     # Run final four bracket
     def final_four(self):
         championship = []
-        match_ups = [[self.champs['east'], self.champs['west']], [self.champs['south'], self.champs['midwest']]]
+        match_ups = [[self.champs[self.final_four_match_ups[0]], self.champs[self.final_four_match_ups[2]]], [self.champs[self.final_four_match_ups[1]], self.champs[self.final_four_match_ups[3]]]]
         self.round5 = match_ups
         self.bracket_round += 1
         winner = self.evaluation_metric(match_ups[0])
@@ -478,5 +498,10 @@ class MarchMadness:
             elif team2['rank'] > team1['rank']:
                 return 1
             
-madness = MarchMadness(MarchMadness.weighted_rankings)
-madness.run_bracket_statistic()
+#madness1 = MarchMadness(MarchMadness.coin_toss, "Coin Toss")
+#madness1.run_bracket_statistic()
+#print(madness1.name)
+#
+madness2 = MarchMadness(MarchMadness.weighted_rankings, "Weighted Rankings")
+madness2.run_bracket_statistic()
+print(madness2.name)
